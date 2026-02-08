@@ -18,6 +18,12 @@ limitations under the License.
 #include <stdio.h>
 #include <stdlib.h>
 
+// IMPORTANT: explicit STL includes (this .cc is included via tfj_gradients.h in some builds,
+// so we must not rely on transitive includes from other headers).
+#include <string>
+#include <vector>
+#include <unordered_map>
+
 #include "tfj_graph.h"
 #include "tsl/platform/errors.h"
 #include "tensorflow/c/c_api.h"
@@ -32,7 +38,6 @@ namespace tensorflow {
         unordered_map<string, TFJ_GradFuncAdapter> g_grad_func_adapters;
 
         /// This method can be used to cast a pointer to/from a C struct that contains only that pointer. It is a bit
-
         /// It has been "inspired" by the TensorFlow C API code, as found at this location when time of writing:
         /// https://github.com/tensorflow/tensorflow/blob/9d637f69f699c0c422716b56153a8b27b681891a/tensorflow/c/c_api.cc#L658
         template <typename T, typename U> T* struct_cast(U* ptr) {
@@ -53,16 +58,34 @@ namespace tensorflow {
             if (found_adapter == g_grad_func_adapters.end()) {
                 return errors::NotFound("No gradient adapter found for operation ", op_type);
             }
-            int num_inputs = grad_inputs.size();
-            TF_Output* inputs = (TF_Output*)malloc(num_inputs * sizeof(TF_Output));
+
+            const int num_inputs = static_cast<int>(grad_inputs.size());
+
+            TF_Output* inputs = nullptr;
+            if (num_inputs > 0) {
+                inputs = static_cast<TF_Output*>(malloc(num_inputs * sizeof(TF_Output)));
+                if (inputs == nullptr) {
+                    return errors::ResourceExhausted(
+                        "Out of memory allocating inputs for custom gradient of op ", op_type);
+                }
+            }
+
             for (int i = 0; i < num_inputs; ++i) {
-                Output grad_input = grad_inputs[i];
+                const Output& grad_input = grad_inputs[i];
                 inputs[i].oper = struct_cast<TF_Operation>(grad_input.node());
                 inputs[i].index = grad_input.index();
             }
-            TF_Output* outputs = NULL;
+
+            TF_Output* outputs = nullptr;
             LOG(INFO) << "Calling Java gradient function for operation of type " << op_type;
-            int num_outputs = found_adapter->second(
+
+            TFJ_GradFuncAdapter adapter = found_adapter->second;
+            if (adapter == nullptr) {
+                if (inputs != nullptr) free(inputs);
+                return errors::Unknown("Null Java gradient adapter for op ", op_type);
+            }
+            LOG(INFO) << "Adapter ptr for " << op_type << " = " << reinterpret_cast<void*>(found_adapter->second);
+            const int num_outputs = adapter(
                 static_cast<TFJ_GraphId>(scope.graph()),
                 struct_cast<TFJ_Scope>(const_cast<Scope*>(&scope)),
                 struct_cast<TF_Operation>(op.node()),
@@ -70,12 +93,39 @@ namespace tensorflow {
                 num_inputs,
                 &outputs
             );
-            for (int i = 0; i < num_outputs; ++i) {
-                TF_Output output = outputs[i];
-                grad_outputs->push_back(Output(struct_cast<Node>(output.oper), output.index));
+
+            // Always free inputs, even on error paths.
+            if (inputs != nullptr) free(inputs);
+
+            // Adapter contract hardening:
+            // - On Java exception / failure, adapter should return negative or outputs==nullptr.
+            if (num_outputs < 0) {
+                if (outputs != nullptr) free(outputs);
+                return errors::Unknown("Java custom gradient adapter failed for op ", op_type,
+                                       " (num_outputs=", num_outputs, ")");
             }
-            free(inputs);
-            free(outputs); // outputs are allocated from Java but must be freed here
+            if (num_outputs > 0 && outputs == nullptr) {
+                return errors::Unknown("Java custom gradient adapter returned null outputs for op ",
+                                       op_type, " with num_outputs=", num_outputs);
+            }
+
+            grad_outputs->reserve(grad_outputs->size() + static_cast<size_t>(num_outputs));
+
+            for (int i = 0; i < num_outputs; ++i) {
+                const TF_Output out = outputs[i];
+
+                // "NoGradient" sentinel from Java: TF_Output.oper == nullptr
+                if (out.oper == nullptr) {
+                    // Represent "no gradient" as an empty Output.
+                    // TF's gradient builder should tolerate missing gradients for non-differentiable inputs.
+                    grad_outputs->push_back(Output());
+                    continue;
+                }
+
+                grad_outputs->push_back(Output(struct_cast<Node>(out.oper), out.index));
+            }
+
+            if (outputs != nullptr) free(outputs);
             return OkStatus();
         }
     }
@@ -91,6 +141,14 @@ bool TFJ_HasGradient(const char* op_type) {
 }
 
 bool TFJ_RegisterCustomGradient(const char* op_type, TFJ_GradFuncAdapter grad_func_adapter) {
+    LOG(INFO) << "TFJ_RegisterCustomGradient(" << op_type << ") adapter_ptr="
+                << reinterpret_cast<void*>(grad_func_adapter);
+
+    if (grad_func_adapter == nullptr) {
+        LOG(ERROR) << "Refusing to register NULL Java gradient adapter for op " << op_type;
+        return false;
+    }
+
     if (TFJ_HasGradient(op_type)) { // Check if gradient already exists otherwise the JVM might abort/crash
         LOG(WARNING) << "Tried to register Java gradient function for operation " << op_type
                      << ", which has already a registered function";
