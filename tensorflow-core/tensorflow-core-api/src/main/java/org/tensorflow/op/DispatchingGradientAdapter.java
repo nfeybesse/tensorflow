@@ -28,7 +28,8 @@ final class DispatchingGradientAdapter extends AbstractGradientAdapter {
         this.ctor = inputClass.getConstructor(org.tensorflow.GraphOperation.class);
       } catch (NoSuchMethodException e) {
         throw new IllegalArgumentException(
-            "Inputs class " + inputClass.getName() + " must have a public ctor(GraphOperation).", e);
+            "Inputs class " + inputClass.getName() + " must have a public ctor(GraphOperation).",
+            e);
       }
     }
   }
@@ -37,7 +38,8 @@ final class DispatchingGradientAdapter extends AbstractGradientAdapter {
     raw.put(opType, g);
   }
 
-  <T extends RawOpInputs<?>> void putTyped(String opType, CustomGradient<T> g, Class<T> inputClass) {
+  <T extends RawOpInputs<?>> void putTyped(
+      String opType, CustomGradient<T> g, Class<T> inputClass) {
     typed.put(opType, new TypedEntry<>(g, inputClass));
   }
 
@@ -50,7 +52,8 @@ final class DispatchingGradientAdapter extends AbstractGradientAdapter {
     RawCustomGradient rg = raw.get(opType);
     if (rg != null) {
       // NativeScope & Ops constructors are package-private => must be in org.tensorflow.op
-      Scope nativeScope = new NativeScope(scope, graph, operation.name()).withSubScope(operation.name());
+      Scope nativeScope =
+          new NativeScope(scope, graph, operation.name()).withSubScope(operation.name());
       return rg.call(new Ops(nativeScope), operation, gradInputs);
     }
 
@@ -64,10 +67,15 @@ final class DispatchingGradientAdapter extends AbstractGradientAdapter {
   }
 
   private <T extends RawOpInputs<?>> List<Operand<?>> applyTyped(
-      Graph graph, TFJ_Scope scope, GraphOperation operation, List<Output<?>> gradInputs, TypedEntry<T> te) {
+      Graph graph,
+      TFJ_Scope scope,
+      GraphOperation operation,
+      List<Output<?>> gradInputs,
+      TypedEntry<T> te) {
     try {
       T inputs = te.ctor.newInstance(operation);
-      Scope nativeScope = new NativeScope(scope, graph, operation.name()).withSubScope(operation.name());
+      Scope nativeScope =
+          new NativeScope(scope, graph, operation.name()).withSubScope(operation.name());
       return te.grad.call(new Ops(nativeScope), inputs, gradInputs);
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Failed to instantiate inputs for " + te.inputClass.getName(), e);

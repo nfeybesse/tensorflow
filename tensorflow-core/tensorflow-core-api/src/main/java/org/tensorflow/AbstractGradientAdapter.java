@@ -92,8 +92,18 @@ public abstract class AbstractGradientAdapter extends TFJ_GradFuncAdapter {
         new TF_Output(Pointer.malloc((long) outputs.size() * Pointer.sizeof(TF_Output.class)));
 
     for (int i = 0; i < outputs.size(); ++i) {
-      var output = outputs.get(i).asOutput();
       var nativeOutput = nativeOutputs.getPointer(i);
+
+      Operand<?> operand = outputs.get(i);
+      if (operand == null) {
+        // "NoGradient" sentinel: null oper + index 0.
+        // Native side must tolerate TF_Output.oper == nullptr.
+        nativeOutput.oper((org.tensorflow.internal.c_api.TF_Operation) null);
+        nativeOutput.index(0);
+        continue;
+      }
+
+      var output = operand.asOutput();
       nativeOutput.oper(((GraphOperation) output.op()).getUnsafeNativeHandle());
       nativeOutput.index(output.index());
     }

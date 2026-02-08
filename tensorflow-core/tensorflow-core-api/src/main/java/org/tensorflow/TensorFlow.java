@@ -207,7 +207,10 @@ public final class TensorFlow {
     if (hasGradient(opType)) {
       return false;
     }
-    TFJ_GradFuncAdapter g = RawCustomGradient.adapter(gradient);
+
+    org.tensorflow.op.GradientDispatch.putRaw(opType, gradient);
+    TFJ_GradFuncAdapter g = org.tensorflow.op.GradientDispatch.adapter();
+
     if (!TFJ_RegisterCustomGradient(opType, g)) {
       return false;
     }
@@ -255,7 +258,10 @@ public final class TensorFlow {
     if (hasGradient(opType)) {
       return false;
     }
-    TFJ_GradFuncAdapter g = CustomGradient.adapter(gradient, inputClass);
+
+    org.tensorflow.op.GradientDispatch.putTyped(opType, gradient, inputClass);
+    TFJ_GradFuncAdapter g = org.tensorflow.op.GradientDispatch.adapter();
+
     if (!TFJ_RegisterCustomGradient(opType, g)) {
       return false;
     }
