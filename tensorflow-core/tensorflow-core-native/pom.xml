@@ -75,6 +75,22 @@
         <dist.download.skip>true</dist.download.skip>
       </properties>
     </profile>
+    
+    <profile>
+      <id>rtx5090</id>
+      <properties>
+        <!-- Build expects gpu wheel -->
+        <native.classifier>linux-x86_64-gpu</native.classifier>
+
+        <!-- Where to clone and what to build (overrideable) -->
+        <tf.wheel.repo>https://github.com/tensorflow/tensorflow.git</tf.wheel.repo>
+        <tf.wheel.ref>v2.18.0</tf.wheel.ref>
+
+        <!-- Path to your hermetic CUDA config (sm_120, compute_120) -->
+        <tf.wheel.bazelrc>${project.basedir}/.tf_configure.bazelrc</tf.wheel.bazelrc>
+      </properties>
+  </profile>
+
 
     <!-- Deploying mode: don't create native artifacts, use ones published by CI build -->
     <profile>
@@ -264,6 +280,28 @@
               </arguments>
             </configuration>
           </execution>
+          <execution>
+            <id>wheel-build-rtx5090</id>
+            <phase>initialize</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <skip>${dist.download.skip}</skip>
+              <executable>bash</executable>
+              <arguments>
+                <argument>scripts/wheel_build_rtx5090.sh</argument>
+                <argument>${dist.download.folder}</argument>
+              </arguments>
+              <environmentVariables>
+                <!-- Optional overrides -->
+                <TF_WHEEL_REPO>${tf.wheel.repo}</TF_WHEEL_REPO>
+                <TF_WHEEL_REF>${tf.wheel.ref}</TF_WHEEL_REF>
+                <TF_WHEEL_BAZELRC>${tf.wheel.bazelrc}</TF_WHEEL_BAZELRC>
+                <TF_WHEEL_BAZELISK>${user.home}/bin/bazelisk</TF_WHEEL_BAZELISK>
+              </environmentVariables>
+            </configuration>
+         </execution>
           <execution>
             <!--
               Download TensorFlow native libraries
