@@ -85,7 +85,11 @@
         <!-- Where to clone and what to build (overrideable) -->
         <tf.wheel.repo>https://github.com/tensorflow/tensorflow.git</tf.wheel.repo>
         <tf.wheel.ref>v2.18.0</tf.wheel.ref>
-
+        <properties>
+  		<tf.wheel.repo>https://github.com/tensorflow/tensorflow.git</tf.wheel.repo>
+ 		 <tf.wheel.ref>0090bddb076</tf.wheel.ref>
+  		<tf.wheel.bazelrc>${project.basedir}/.tf_configure.bazelrc</tf.wheel.bazelrc>
+	</properties> 
         <!-- Path to your hermetic CUDA config (sm_120, compute_120) -->
         <tf.wheel.bazelrc>${project.basedir}/.tf_configure.bazelrc</tf.wheel.bazelrc>
       </properties>
