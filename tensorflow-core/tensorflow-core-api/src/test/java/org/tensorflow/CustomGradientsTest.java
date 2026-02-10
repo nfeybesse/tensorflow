@@ -3,7 +3,6 @@ package org.tensorflow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -97,7 +96,7 @@ public class CustomGradientsTest {
               // dL/d(y) not needed for this test; return zeros to keep it non-null.
               Operand<TFloat32> dY = tf.zerosLike(y);
 
-              return java.util.Arrays.asList(dY, dDy);
+              return List.of(dY, dDy);
             });
 
     try (Graph g = new Graph()) {
@@ -119,7 +118,7 @@ public class CustomGradientsTest {
       assertNotNull(grads);
       assertEquals(1, grads.length);
       assertNotNull(grads[0], "Expected a non-null gradient for sigmoid(x) wrt x.");
-      assertFalse(grads[0].isClosed(), "Expected an active Output for d(sigmoid)/dx.");
+      assertTrue(!grads[0].isClosed(), "Expected an active Output for d(sigmoid)/dx.");
     }
   }
 }
