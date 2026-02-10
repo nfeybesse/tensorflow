@@ -80,11 +80,11 @@ public abstract class AbstractGradientAdapter extends TFJ_GradFuncAdapter {
   }
 
   /**
-  * Put the Java outputs into the array of native outputs, resizing it to the necessary size.
-  *
-  * @param outputs the outputs to put
-  * @return pointer to the native array of outputs
-  */
+   * Put the Java outputs into the array of native outputs, resizing it to the necessary size.
+   *
+   * @param outputs the outputs to put
+   * @return pointer to the native array of outputs
+   */
   private static TF_Output toNativeOutputs(List<Operand<?>> outputs) {
     // Use malloc to allocate native outputs, as they will be freed by the native layer and we do
     // not want JavaCPP to deallocate them
