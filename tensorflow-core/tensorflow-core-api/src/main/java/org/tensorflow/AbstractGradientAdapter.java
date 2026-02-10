@@ -80,11 +80,11 @@ public abstract class AbstractGradientAdapter extends TFJ_GradFuncAdapter {
   }
 
   /**
-   * Put the Java outputs into the array of native outputs, resizing it to the necessary size.
-   *
-   * @param outputs the outputs to put
-   * @return pointer to the native array of outputs
-   */
+  * Put the Java outputs into the array of native outputs, resizing it to the necessary size.
+  *
+  * @param outputs the outputs to put
+  * @return pointer to the native array of outputs
+  */
   private static TF_Output toNativeOutputs(List<Operand<?>> outputs) {
     // Use malloc to allocate native outputs, as they will be freed by the native layer and we do
     // not want JavaCPP to deallocate them
@@ -92,13 +92,12 @@ public abstract class AbstractGradientAdapter extends TFJ_GradFuncAdapter {
         new TF_Output(Pointer.malloc((long) outputs.size() * Pointer.sizeof(TF_Output.class)));
 
     for (int i = 0; i < outputs.size(); ++i) {
+      Operand<?> operand = outputs.get(i);
       var nativeOutput = nativeOutputs.getPointer(i);
 
-      Operand<?> operand = outputs.get(i);
+      // Convention: null Operand => NoGradient
       if (operand == null) {
-        // "NoGradient" sentinel: null oper + index 0.
-        // Native side must tolerate TF_Output.oper == nullptr.
-        nativeOutput.oper((org.tensorflow.internal.c_api.TF_Operation) null);
+        nativeOutput.oper((TF_Operation) null);
         nativeOutput.index(0);
         continue;
       }
