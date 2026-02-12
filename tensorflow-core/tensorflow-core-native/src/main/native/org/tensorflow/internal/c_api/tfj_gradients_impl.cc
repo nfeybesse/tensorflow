@@ -90,13 +90,18 @@ namespace tensorflow {
                 &outputs
             );
 
-            if (inputs != NULL) free(inputs);
+            if (inputs != NULL) {
+                free(inputs);
+            }
 
             if (num_outputs < 0) {
-                if (outputs != NULL) free(outputs);
+                if (outputs != NULL) {
+                    free(outputs);
+                }
                 return errors::Unknown("Java custom gradient adapter failed for operation ", op_type,
                                        " (num_outputs=", num_outputs, ")");
             }
+
             if (num_outputs > 0 && outputs == NULL) {
                 return errors::Unknown("Java custom gradient adapter returned null outputs for operation ",
                                        op_type, " with num_outputs=", num_outputs);
@@ -113,7 +118,10 @@ namespace tensorflow {
                 }
             }
 
-            if (outputs != NULL) free(outputs); // outputs are allocated from Java but must be freed here
+            if (outputs != NULL) {
+                free(outputs); // outputs are allocated from Java but must be freed here
+            }
+
             return OkStatus();
         }
     }

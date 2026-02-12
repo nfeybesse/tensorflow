@@ -1,3 +1,18 @@
+/* Copyright 2026 The TensorFlow Authors. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+=======================================================================
+*/
 package org.tensorflow.op;
 
 import java.lang.reflect.Constructor;
@@ -15,6 +30,16 @@ final class DispatchingGradientAdapter extends AbstractGradientAdapter {
 
   private final ConcurrentMap<String, RawCustomGradient> raw = new ConcurrentHashMap<>();
   private final ConcurrentMap<String, TypedEntry<?>> typed = new ConcurrentHashMap<>();
+
+  private static String dupMsg(String opType, String existingKind, String newKind) {
+    return "A "
+        + existingKind
+        + " gradient is already registered for op type '"
+        + opType
+        + "'. Raw and typed registrations are mutually exclusive; cannot register "
+        + newKind
+        + ".";
+  }
 
   static final class TypedEntry<T extends RawOpInputs<?>> {
     final CustomGradient<T> grad;
@@ -35,12 +60,26 @@ final class DispatchingGradientAdapter extends AbstractGradientAdapter {
   }
 
   void putRaw(String opType, RawCustomGradient g) {
-    raw.put(opType, g);
+    if (typed.containsKey(opType)) {
+      throw new IllegalStateException(dupMsg(opType, "typed", "raw"));
+    }
+    RawCustomGradient prev = raw.putIfAbsent(opType, g);
+    if (prev != null) {
+      throw new IllegalStateException(
+          "A raw gradient is already registered for op type '" + opType + "'.");
+    }
   }
 
   <T extends RawOpInputs<?>> void putTyped(
       String opType, CustomGradient<T> g, Class<T> inputClass) {
-    typed.put(opType, new TypedEntry<>(g, inputClass));
+    if (raw.containsKey(opType)) {
+      throw new IllegalStateException(dupMsg(opType, "raw", "typed"));
+    }
+    TypedEntry<?> prev = typed.putIfAbsent(opType, new TypedEntry<>(g, inputClass));
+    if (prev != null) {
+      throw new IllegalStateException(
+          "A typed gradient is already registered for op type '" + opType + "'.");
+    }
   }
 
   @Override
