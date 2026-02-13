@@ -26,6 +26,28 @@ import org.tensorflow.Operand;
 import org.tensorflow.Output;
 import org.tensorflow.internal.c_api.TFJ_Scope;
 
+/**
+ * Dispatching adapter for Java-side custom gradient registration.
+ *
+ * <p>This class mirrors the behavior of TensorFlow Python's {@code tf.RegisterGradient} mechanism
+ * by providing a centralized dispatch layer for custom gradients in the Java API.
+ *
+ * <p>Gradients may be registered in one of two forms for a given op type:
+ *
+ * <ul>
+ *   <li>A raw gradient ({@link RawCustomGradient}) operating directly on {@link GraphOperation} and
+ *       {@link Output} objects.
+ *   <li>A typed gradient ({@link CustomGradient}) operating on generated {@link RawOpInputs}
+ *       subclasses.
+ * </ul>
+ *
+ * <p>For any given op type, exactly one gradient definition is permitted: either raw or typed.
+ * Duplicate registrations, or attempts to mix raw and typed gradients for the same op type, are
+ * rejected to prevent ambiguous dispatch behavior.
+ *
+ * <p>At runtime, {@link #apply(Graph, TFJ_Scope, GraphOperation, List)} determines the operation
+ * type and dispatches to the corresponding registered gradient implementation.
+ */
 final class DispatchingGradientAdapter extends AbstractGradientAdapter {
 
   private final ConcurrentMap<String, RawCustomGradient> raw = new ConcurrentHashMap<>();
