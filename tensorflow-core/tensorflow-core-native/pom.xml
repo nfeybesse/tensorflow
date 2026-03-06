@@ -75,6 +75,20 @@
         <dist.download.skip>true</dist.download.skip>
       </properties>
     </profile>
+    
+    <profile>
+      <id>rtx5090</id>
+      <properties>
+        <!-- Build expects gpu wheel -->
+        <native.classifier>linux-x86_64-gpu</native.classifier>
+
+        <!-- Where to clone and what to build (overrideable) -->
+  	<tf.wheel.repo>https://github.com/tensorflow/tensorflow.git</tf.wheel.repo>
+        <tf.wheel.ref>0090bddb076</tf.wheel.ref>
+        <!-- Path to your hermetic CUDA config (sm_120, compute_120) -->
+        <tf.wheel.bazelrc>${project.basedir}/.tf_configure.bazelrc</tf.wheel.bazelrc>
+      </properties>
+  </profile>
 
     <!-- Deploying mode: don't create native artifacts, use ones published by CI build -->
     <profile>
